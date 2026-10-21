@@ -43,6 +43,23 @@ type HealthResponse struct {
 	Services  []ServiceResult `json:"services"`
 }
 
+type healthStore interface {
+	listServices(context.Context) ([]Service, error)
+	recordHealthCheck(context.Context, ServiceResult) error
+}
+
+type postgresHealthStore struct {
+	db *sql.DB
+}
+
+func (store postgresHealthStore) listServices(ctx context.Context) ([]Service, error) {
+	return listServices(ctx, store.db)
+}
+
+func (store postgresHealthStore) recordHealthCheck(ctx context.Context, result ServiceResult) error {
+	return recordHealthCheck(ctx, store.db, result)
+}
+
 func connectDatabase(ctx context.Context) (*sql.DB, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -105,6 +122,10 @@ func listServices(ctx context.Context, db *sql.DB) ([]Service, error) {
 }
 
 func checkService(client *http.Client, service Service) ServiceResult {
+	return checkServiceWithTimeout(client, service, checkTimeout)
+}
+
+func checkServiceWithTimeout(client *http.Client, service Service, timeout time.Duration) ServiceResult {
 	result := ServiceResult{
 		Name:      service.Name,
 		ServiceID: service.ID,
@@ -112,7 +133,7 @@ func checkService(client *http.Client, service Service) ServiceResult {
 	}
 
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, service.URL, nil)
@@ -153,14 +174,14 @@ func recordHealthCheck(ctx context.Context, db *sql.DB, result ServiceResult) er
 	return nil
 }
 
-func healthHandler(db *sql.DB, client *http.Client) http.HandlerFunc {
+func healthHandler(store healthStore, client *http.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		services, err := listServices(r.Context(), db)
+		services, err := store.listServices(r.Context())
 		if err != nil {
 			log.Printf("load services: %v", err)
 			http.Error(w, "Unable to load configured services", http.StatusInternalServerError)
@@ -174,7 +195,7 @@ func healthHandler(db *sql.DB, client *http.Client) http.HandlerFunc {
 			go func(i int, service Service) {
 				defer wg.Done()
 				result := checkService(client, service)
-				if err := recordHealthCheck(r.Context(), db, result); err != nil {
+				if err := store.recordHealthCheck(r.Context(), result); err != nil {
 					log.Printf("%v", err)
 					result.Status = "DOWN"
 					result.Details = "Unable to save health-check result"
@@ -205,7 +226,7 @@ func main() {
 	defer db.Close()
 
 	client := &http.Client{}
-	http.HandleFunc("/api/health", healthHandler(db, client))
+	http.HandleFunc("/api/health", healthHandler(postgresHealthStore{db: db}, client))
 
 	log.Println("Health API listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

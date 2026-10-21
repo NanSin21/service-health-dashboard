@@ -52,6 +52,17 @@ docker compose down
 
 The PostgreSQL data volume is retained, so service configuration and health-check history remain available when the stack is started again. Stop the Vite process with `Ctrl+C` in its terminal.
 
+## Run tests and checks
+
+From the repository root, run the backend and frontend checks with:
+
+```sh
+(cd app-code/backend && go test ./... && go build ./...)
+(cd frontend && npm ci && npm test && npm run lint && npm run build)
+```
+
+These are also run by the GitHub Actions CI workflow.
+
 ## Troubleshooting
 
 - **Docker daemon is unavailable:** Start Docker Desktop, wait until its engine is ready, then rerun `docker compose up --build -d`.
