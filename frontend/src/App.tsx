@@ -79,6 +79,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Fetch once on mount; the refresh callback owns request and loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
 
