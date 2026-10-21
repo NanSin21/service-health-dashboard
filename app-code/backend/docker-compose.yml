@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: service-health-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: service_dashboard
+      POSTGRES_USER: service_dashboard
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - service-health-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U service_dashboard -d service_dashboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
+  order-service:
+    build: ./services/order-service
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  payment-service:
+    build: ./services/payment-service
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+
+  health-api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://service_dashboard:dev_password@postgres:5432/service_dashboard?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  service-health-postgres-data:
