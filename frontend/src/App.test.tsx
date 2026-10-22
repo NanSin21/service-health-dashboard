@@ -79,6 +79,20 @@ describe('service health dashboard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Unable to reach the health-check backend');
   });
 
+  it('retries the request from the backend error panel', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(jsonResponse(healthyAndUnhealthyResponse));
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }));
+
+    expect(await screen.findByText('user-service')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('shows the loading state and disables refresh while a check is in progress', async () => {
     let resolveFetch!: (response: Response) => void;
     vi.mocked(fetch).mockImplementation(() => new Promise((resolve) => {

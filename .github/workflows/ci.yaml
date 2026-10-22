@@ -31,7 +31,16 @@ jobs:
           test -z "$(gofmt -l .)"
 
       - name: Run tests
-        run: go test ./...
+        run: go test -coverprofile=coverage.out ./...
+
+      - name: Report Go coverage
+        run: go tool cover -func=coverage.out
+
+      - name: Upload Go coverage profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage
+          path: app-code/backend/coverage.out
 
       - name: Build
         run: go build ./...
@@ -53,6 +62,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
-      - run: npm test
+      - name: Run frontend tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
       - run: npm run lint
       - run: npm run build

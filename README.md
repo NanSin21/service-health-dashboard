@@ -57,11 +57,12 @@ The PostgreSQL data volume is retained, so service configuration and health-chec
 From the repository root, run the backend and frontend checks with:
 
 ```sh
-(cd app-code/backend && go test ./... && go build ./...)
-(cd frontend && npm ci && npm test && npm run lint && npm run build)
+(cd app-code/backend && go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out && go build ./...)
+(cd frontend && npm ci && npm run test:coverage && npm run lint && npm run build)
 ```
 
 These are also run by the GitHub Actions CI workflow.
+The Go coverage profile is written to `app-code/backend/coverage.out`, and the frontend LCOV report is written to `frontend/coverage/lcov.info`. CI uploads both reports as workflow artifacts.
 
 ## Troubleshooting
 
