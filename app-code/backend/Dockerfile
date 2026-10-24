@@ -8,5 +8,6 @@ RUN CGO_ENABLED=0 go build -o /health-api .
 
 FROM scratch
 COPY --from=build /health-api /health-api
+ENV PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/health-api"]
