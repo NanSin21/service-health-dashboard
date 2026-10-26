@@ -128,11 +128,11 @@ func (store *fakeHealthStore) recordHealthCheck(_ context.Context, result Servic
 	return store.recordErr
 }
 
-func TestHealthHandler(t *testing.T) {
+func TestHealthCheckHandler(t *testing.T) {
 	t.Run("rejects non-GET requests", func(t *testing.T) {
 		store := &fakeHealthStore{}
 		recorder := httptest.NewRecorder()
-		healthHandler(store, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodPost, "/api/health", nil))
+		healthCheckHandler(store, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodPost, "/api/health", nil))
 
 		if recorder.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusMethodNotAllowed)
@@ -142,7 +142,7 @@ func TestHealthHandler(t *testing.T) {
 	t.Run("reports service lookup errors", func(t *testing.T) {
 		store := &fakeHealthStore{listErr: errors.New("database unavailable")}
 		recorder := httptest.NewRecorder()
-		healthHandler(store, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+		healthCheckHandler(store, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
 
 		if recorder.Code != http.StatusInternalServerError {
 			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusInternalServerError)
@@ -165,7 +165,7 @@ func TestHealthHandler(t *testing.T) {
 			{ID: 2, Name: "unhealthy", URL: "http://health.test/down"},
 		}}
 		recorder := httptest.NewRecorder()
-		healthHandler(store, client)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+		healthCheckHandler(store, client)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
 
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("status = %d, want %d; body: %s", recorder.Code, http.StatusOK, recorder.Body.String())
@@ -208,7 +208,7 @@ func TestHealthHandler(t *testing.T) {
 			recordErr: errors.New("database write failed"),
 		}
 		recorder := httptest.NewRecorder()
-		healthHandler(store, client)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+		healthCheckHandler(store, client)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
 
 		var response HealthResponse
 		if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -221,7 +221,7 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("empty service list returns an empty array", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		healthHandler(&fakeHealthStore{}, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+		healthCheckHandler(&fakeHealthStore{}, http.DefaultClient)(recorder, httptest.NewRequest(http.MethodGet, "/api/health", nil))
 
 		var response HealthResponse
 		if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {

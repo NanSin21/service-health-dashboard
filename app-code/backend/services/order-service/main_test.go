@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func TestHealthHandler(t *testing.T) {
+func TestHealthCheckHandler(t *testing.T) {
 	t.Run("returns healthy service JSON", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		healthHandler(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
+		healthCheckHandler(recorder, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
@@ -30,7 +30,7 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("rejects non-GET requests", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		healthHandler(recorder, httptest.NewRequest(http.MethodPost, "/health", nil))
+		healthCheckHandler(recorder, httptest.NewRequest(http.MethodPost, "/health", nil))
 
 		if recorder.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("status = %d, want %d", recorder.Code, http.StatusMethodNotAllowed)

@@ -4,9 +4,9 @@ services:
     container_name: service-health-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: service_dashboard
-      POSTGRES_USER: service_dashboard
-      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: ${DB_NAME:-service_dashboard}
+      POSTGRES_USER: ${DB_USER:-service_dashboard}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
     ports:
       - "5433:5432"
     volumes:
@@ -38,7 +38,12 @@ services:
   health-api:
     build: .
     environment:
-      DATABASE_URL: postgres://service_dashboard:dev_password@postgres:5432/service_dashboard?sslmode=disable
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-service_dashboard}
+      DB_PASSWORD: ${DB_PASSWORD:-dev_password}
+      DB_NAME: ${DB_NAME:-service_dashboard}
+      DB_SSLMODE: ${DB_SSLMODE:-disable}
     depends_on:
       postgres:
         condition: service_healthy

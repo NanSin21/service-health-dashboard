@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -18,8 +20,6 @@ import (
 )
 
 const checkTimeout = 5 * time.Second
-
-const defaultDatabaseURL = "postgres://service_dashboard:dev_password@localhost:5433/service_dashboard?sslmode=disable"
 
 //go:embed schema.sql
 var schema embed.FS
@@ -60,13 +60,25 @@ func (store postgresHealthStore) recordHealthCheck(ctx context.Context, result S
 	return recordHealthCheck(ctx, store.db, result)
 }
 
-func connectDatabase(ctx context.Context) (*sql.DB, error) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		databaseURL = defaultDatabaseURL
+func envOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
+	return fallback
+}
 
-	db, err := sql.Open("pgx", databaseURL)
+func connectDatabase(ctx context.Context) (*sql.DB, error) {
+	databaseURL := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(envOrDefault("DB_USER", "service_dashboard"), envOrDefault("DB_PASSWORD", "dev_password")),
+		Host:   net.JoinHostPort(envOrDefault("DB_HOST", "localhost"), envOrDefault("DB_PORT", "5433")),
+		Path:   envOrDefault("DB_NAME", "service_dashboard"),
+	}
+	query := url.Values{}
+	query.Set("sslmode", envOrDefault("DB_SSLMODE", "disable"))
+	databaseURL.RawQuery = query.Encode()
+
+	db, err := sql.Open("pgx", databaseURL.String())
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -174,7 +186,7 @@ func recordHealthCheck(ctx context.Context, db *sql.DB, result ServiceResult) er
 	return nil
 }
 
-func healthHandler(store healthStore, client *http.Client) http.HandlerFunc {
+func healthCheckHandler(store healthStore, client *http.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -226,8 +238,13 @@ func main() {
 	defer db.Close()
 
 	client := &http.Client{}
-	http.HandleFunc("/api/health", healthHandler(postgresHealthStore{db: db}, client))
+	http.HandleFunc("/api/health", healthCheckHandler(postgresHealthStore{db: db}, client))
 
-	log.Println("Health API listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	address := ":" + port
+	log.Printf("Health API listening on %s", address)
+	log.Fatal(http.ListenAndServe(address, nil))
 }

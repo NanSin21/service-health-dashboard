@@ -4,16 +4,21 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
-	http.HandleFunc("/health", healthHandler)
-
-	log.Println("user-service listening on :8081")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	http.HandleFunc("/health", healthCheckHandler)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081" // default port
+	}
+	address := ":" + port
+	log.Printf("user-service listening on %s", address)
+	log.Fatal(http.ListenAndServe(address, nil))
 }
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -23,5 +28,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"service": "user-service",
 		"status":  "UP",
+		"code":    "200",
 	})
 }

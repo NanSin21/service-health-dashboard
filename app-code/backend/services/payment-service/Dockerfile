@@ -5,5 +5,6 @@ RUN CGO_ENABLED=0 go build -o /service main.go
 
 FROM scratch
 COPY --from=build /service /service
+ENV PORT=8083
 EXPOSE 8083
 ENTRYPOINT ["/service"]

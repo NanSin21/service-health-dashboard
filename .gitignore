@@ -1,2 +1,3 @@
 app-code/backend/coverage.out
 frontend/coverage/
+app-code/backend/.env
